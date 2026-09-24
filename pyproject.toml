@@ -1,0 +1,33 @@
+[project]
+name = "pet-breed-mlops-project"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "mennasalah", email = "menna.skh2003@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "logging>=0.4.9.6",
+    "numpy>=2.5.3",
+    "pandas>=3.0.5",
+    "pydantic>=2.13.5",
+    "pydantic-settings>=2.15.0",
+    "structlog>=26.1.0",
+]
+
+[project.scripts]
+pet-breed-mlops-project = "pet_breed_mlops_project:main"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "imagecorruptions>=1.1.2",
+    "matplotlib>=3.11.1",
+    "scikit-learn>=1.9.1",
+    "torch>=2.14.0",
+    "torchvision>=0.29.0",
+    "tqdm>=4.70.1",
+]
