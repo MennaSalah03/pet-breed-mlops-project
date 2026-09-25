@@ -1,0 +1,21 @@
+   # dvc.yaml
+   stages:
+     corrupt:
+       cmd: python data_modification/corrupt_test_data.py
+       deps:
+         - data/images
+         - data/test.txt
+         - data_modification/corrupt_test_data.py
+       outs:
+         - data/oxford-iiit-pet/corrupted_images
+
+     manifest:
+       cmd: python build_manifest.py
+       deps:
+         - data/oxford-iiit-pet/images
+         - data/oxford-iiit-pet/corrupted_images
+         - data/oxford-iiit-pet/annotations/test.txt
+         - data/oxford-iiit-pet/annotations/trainval.txt
+         - build_manifest.py
+       outs:
+         - data/oxford-iiit-pet/manifest.json
