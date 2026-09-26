@@ -5,11 +5,6 @@ import re
 import config
 from PIL import Image
 
-DATA_DIR = "data"
-IMAGES_DIR = os.path.join(DATA_DIR, "images")
-CORRUPT_DIR = os.path.join(DATA_DIR, "corrupted_images")
-OUT = os.path.join(DATA_DIR, "manifest.json")
-
 
 def breed_of(image_id):
     return re.sub(r"_\d+$", "", image_id).replace("_", " ")
@@ -32,7 +27,7 @@ def parse_list(path, split, class_lookup):
                 continue
             image_id, class_id, species_id, _breed_id = line.split()
             class_lookup[image_id] = int(class_id) - 1
-            p = os.path.join(IMAGES_DIR, f"{image_id}.jpg")
+            p = os.path.join(config.IMAGES_DIR, f"{image_id}.jpg")
             w, h = img_size(p)
             entries.append({
                 "image_id": image_id,
@@ -51,14 +46,14 @@ def parse_list(path, split, class_lookup):
 
 def parse_corrupted(class_lookup):
     entries = []
-    if not os.path.isdir(CORRUPT_DIR):
+    if not os.path.isdir(config.CORRUPT_DIR):
         return entries
-    for fname in os.listdir(CORRUPT_DIR):
+    for fname in os.listdir(config.CORRUPT_DIR):
         m = config.CORRUPT_RE.match(fname)
         if not m:
             continue
         image_id, corr, sev = m.group("id"), m.group("corr"), int(m.group("sev"))
-        p = os.path.join(CORRUPT_DIR, fname)
+        p = os.path.join(config.CORRUPT_DIR, fname)
         w, h = img_size(p)
         entries.append({
             "image_id": image_id,
@@ -80,9 +75,9 @@ def main():
     manifest = parse_list(config.TRAIN_LIST, "train", class_lookup)
     manifest += parse_list(config.TEST_LIST, "test", class_lookup)
     manifest += parse_corrupted(class_lookup)
-    with open(OUT, "w") as f:
+    with open(config.OUT, "w") as f:
         json.dump(manifest, f, indent=2)
-    print(f"wrote {len(manifest)} entries to {OUT}")
+    print(f"wrote {len(manifest)} entries to {config.OUT}")
 
 
 if __name__ == "__main__":

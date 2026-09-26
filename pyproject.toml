@@ -16,6 +16,11 @@ dependencies = [
     "structlog>=26.1.0",
 ]
 
+[tool.pytest.ini_options]
+addopts = "--cov=src/prodml --cov-fail-under=70"
+
+
+
 [project.scripts]
 pet-breed-mlops-project = "pet_breed_mlops_project:main"
 
