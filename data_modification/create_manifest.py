@@ -29,18 +29,20 @@ def parse_list(path, split, class_lookup):
             class_lookup[image_id] = int(class_id) - 1
             p = os.path.join(config.IMAGES_DIR, f"{image_id}.jpg")
             w, h = img_size(p)
-            entries.append({
-                "image_id": image_id,
-                "path": p,
-                "breed": breed_of(image_id),
-                "species": config.SPECIES[species_id],
-                "class_index": class_lookup[image_id],
-                "split": split,
-                "corruption": None,
-                "severity": 0,
-                "width": w,
-                "height": h,
-            })
+            entries.append(
+                {
+                    "image_id": image_id,
+                    "path": p,
+                    "breed": breed_of(image_id),
+                    "species": config.SPECIES[species_id],
+                    "class_index": class_lookup[image_id],
+                    "split": split,
+                    "corruption": None,
+                    "severity": 0,
+                    "width": w,
+                    "height": h,
+                }
+            )
     return entries
 
 
@@ -55,18 +57,20 @@ def parse_corrupted(class_lookup):
         image_id, corr, sev = m.group("id"), m.group("corr"), int(m.group("sev"))
         p = os.path.join(config.CORRUPT_DIR, fname)
         w, h = img_size(p)
-        entries.append({
-            "image_id": image_id,
-            "path": p,
-            "breed": breed_of(image_id),
-            "species": "cat" if image_id[0].isupper() else "dog",
-            "class_index": class_lookup.get(image_id),
-            "split": "test",
-            "corruption": corr,
-            "severity": sev,
-            "width": w,
-            "height": h,
-        })
+        entries.append(
+            {
+                "image_id": image_id,
+                "path": p,
+                "breed": breed_of(image_id),
+                "species": "cat" if image_id[0].isupper() else "dog",
+                "class_index": class_lookup.get(image_id),
+                "split": "test",
+                "corruption": corr,
+                "severity": sev,
+                "width": w,
+                "height": h,
+            }
+        )
     return entries
 
 

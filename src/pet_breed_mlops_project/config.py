@@ -22,11 +22,8 @@ class Settings(BaseSettings):
     batch_size = 32
     num_workers: int = min(4, os.cpu_count() or 0)
 
-
     # api_host: str
     # api_port: int
-
-
 
 
 # the single truth imported by the rest of the app.

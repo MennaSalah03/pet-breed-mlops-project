@@ -1,3 +1,1 @@
 ## Pet Breed MLOps project
-
-
