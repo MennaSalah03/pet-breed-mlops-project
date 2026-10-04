@@ -1,0 +1,27 @@
+schema: '2.0'
+stages:
+  manifest:
+    cmd: python data_modification/create_manifest.py
+    deps:
+    - path: data/oxford-iiit-pet/annotations/test.txt
+      hash: md5
+      md5: 41bafb13f289b26f7f2e524e8c2fd609
+      size: 84319
+    - path: data/oxford-iiit-pet/annotations/trainval.txt
+      hash: md5
+      md5: 29d217e9c1d44e2f4100ded6f6278b44
+      size: 87776
+    - path: data/oxford-iiit-pet/images
+      hash: md5
+      md5: 277f608c70d7bd7991e0cd5f5cc845c6.dir
+      size: 796502375
+      nfiles: 7393
+    - path: data_modification/create_manifest.py
+      hash: md5
+      md5: 0465805991edd94e6b5818a2b2853662
+      size: 2559
+    outs:
+    - path: data/oxford-iiit-pet/manifest.json
+      hash: md5
+      md5: 05c562f8d1fe92ec2c79d7db62d9a7c2
+      size: 2066467
