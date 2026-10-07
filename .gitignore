@@ -1,3 +1,17 @@
 __pycache__/
 .venv/
 .vscode/
+
+.env
+
+# MLflow runtime data
+mlruns/
+mlflow.log
+mlflow-data/
+*.db
+
+# training artifacts (ONNX models, class_names.json, transform_config.json)
+artifacts/
+
+# temporary
+docker/
