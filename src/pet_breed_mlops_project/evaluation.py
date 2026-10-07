@@ -1,33 +1,61 @@
 import structlog
 import torch
+from sklearn.metrics import f1_score
 from tqdm import tqdm
+
+from pet_breed_mlops_project.calibration import TemperatureScaler, compute_ece
 
 logger = structlog.getLogger()
 
 
-def evaluate_model(model, dataloader, criterion, device):
-    """Full evaluation pass over dataloader. Returns (loss, acc)."""
-    logger.info("evaluation.start", num_batches=len(dataloader))
-
+def collect_logits(model, dataloader, device):
+    """Run model over dataloader, return (all_logits, all_labels) on CPU."""
     model.eval()
-    running_loss = 0.0
-    running_corrects = 0
+    all_logits, all_labels = [], []
 
     with torch.no_grad():
-        for inputs, labels in tqdm(dataloader, desc="test"):
+        for inputs, labels in tqdm(dataloader, desc="collect_logits"):
             inputs = inputs.to(device)
-            labels = labels.to(device)
-
             outputs = model(inputs)
-            _, preds = torch.max(outputs, 1)
-            loss = criterion(outputs, labels)
+            all_logits.append(outputs.cpu())
+            all_labels.append(labels)
 
-            running_loss += loss.item() * inputs.size(0)
-            running_corrects += torch.sum(preds == labels.data)
+    return torch.cat(all_logits), torch.cat(all_labels)
 
-    dataset_size = len(dataloader.dataset)
-    test_loss = running_loss / dataset_size
-    test_acc = (running_corrects.double() / dataset_size).item()
 
-    logger.info("evaluation.complete", loss=round(test_loss, 4), acc=round(test_acc, 4))
-    return test_loss, test_acc
+def compute_metrics(
+    logits: torch.Tensor, labels: torch.Tensor, temperature: float = 1.0
+) -> dict:
+    """top1 accuracy, macro F1, ECE — optionally with temperature-scaled probabilities."""
+    probs = torch.softmax(logits / temperature, dim=1)
+    preds = torch.argmax(probs, dim=1)
+
+    metrics = {
+        "top1": (preds == labels).float().mean().item(),
+        "f1_macro": f1_score(labels.numpy(), preds.numpy(), average="macro"),
+        "ece": compute_ece(probs, labels),
+    }
+    logger.info(
+        "evaluation.metrics",
+        **{k: round(v, 4) for k, v in metrics.items()},
+        temperature=temperature,
+    )
+    return metrics
+
+
+def evaluate_with_calibration(model, dataloader, device) -> dict:
+    """Collect logits, fit temperature on the same split, return calibrated metrics."""
+    logger.info("evaluation.calibrated.start")
+
+    logits, labels = collect_logits(model, dataloader, device)
+
+    scaler = TemperatureScaler()
+    temperature = scaler.fit(logits, labels)
+
+    metrics = compute_metrics(logits, labels, temperature=temperature)
+    metrics["temperature"] = temperature
+
+    logger.info(
+        "evaluation.calibrated.complete", **{k: round(v, 4) for k, v in metrics.items()}
+    )
+    return metrics

@@ -51,17 +51,17 @@ def seed_worker(worker_id):
     )
 
 
-def load_data():
+def load_data(batch_size: int | None = None):
+    batch_size = batch_size or config.batch_size
     train_dataset, test_dataset = _get_data()
 
     generator = torch.Generator()
     generator.manual_seed(config.seed)
-    logger.info("dataloader.generator_seeded", seed=config.seed)
 
     dataloaders = {
         "train": DataLoader(
             train_dataset,
-            batch_size=config.batch_size,
+            batch_size=batch_size,
             shuffle=True,
             num_workers=config.num_workers,
             worker_init_fn=seed_worker,
@@ -69,12 +69,11 @@ def load_data():
         ),
         "val": DataLoader(
             test_dataset,
-            batch_size=config.batch_size,
+            batch_size=batch_size,
             shuffle=False,
             num_workers=config.num_workers,
         ),
     }
-
     logger.info(
         "dataloader.ready",
         batch_size=config.batch_size,
