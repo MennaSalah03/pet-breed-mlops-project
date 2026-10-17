@@ -1,41 +1,73 @@
+import json
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+import numpy as np
+import onnxruntime as ort
 import structlog
-import torch
-import torch.nn.functional as F
+
+from pet_breed_mlops_project.config import config
+from pet_breed_mlops_project.transform import imagenet_norm_trans
 
 logger = structlog.getLogger()
 
 
 class BaseModel(ABC):
-    """Base class for loadable, servable models. Subclasses define architecture-specific
-    loading and preprocessing; prediction logic is shared here."""
+    """Prediction interface that API, BentoML runner and ONNX model all sit behind."""
 
-    def __init__(self, model_path: str | Path, device: torch.device | None = None):
+    @abstractmethod
+    def load(self) -> None: ...
+
+    @abstractmethod
+    def preprocess(self, inputs): ...
+
+    @abstractmethod
+    def predict_top3(self, inputs, k: int = 3): ...
+
+
+class PetBreedModel(BaseModel):
+    """ONNX-backed pet-breed classifier, loaded from a directory containing:
+    model.onnx, class_names.json, transform_config.json
+    """
+
+    def __init__(self, model_path: str | Path, use_gpu: bool = False):
         self.model_path = Path(model_path)
-        self.device = device or torch.device(
-            "cuda:0" if torch.cuda.is_available() else "cpu"
-        )
-        self.model: torch.nn.Module | None = None
+        self.use_gpu = use_gpu
         self.class_names: list[str] | None = None
+        self.session: ort.InferenceSession | None = None
         self._loaded = False
 
-        logger.info(
-            "model.init", model_path=str(self.model_path), device=str(self.device)
-        )
+        logger.info("model.init", model_path=str(self.model_path), use_gpu=use_gpu)
 
-    @abstractmethod
     def load(self) -> None:
-        """Load architecture, weights, class names, and preprocessing config.
-        Must set self.model, self.class_names, and self._loaded = True."""
-        raise NotImplementedError
+        logger.info("model.load.start", model_path=str(self.model_path))
 
-    @abstractmethod
-    def preprocess(self, inputs):
-        """Turn raw input (e.g. a PIL.Image or list of them) into a batched tensor
-        ready to feed self.model."""
-        raise NotImplementedError
+        with open(self.model_path / config.class_name_filename) as f:
+            self.class_names = json.load(f)
+
+        with open(self.model_path / config.transform_config_filename) as f:
+            transform_config = json.load(f)
+
+        self._eval_transform = imagenet_norm_trans(
+            transform_config["mean"], transform_config["std"]
+        )["test"]
+
+        providers = (
+            ["CUDAExecutionProvider", "CPUExecutionProvider"]
+            if self.use_gpu
+            else ["CPUExecutionProvider"]
+        )
+        onnx_path = self.model_path / config.onnx_filename
+        self.session = ort.InferenceSession(str(onnx_path), providers=providers)
+        self._input_name = self.session.get_inputs()[0].name
+
+        self._loaded = True
+        logger.info(
+            "model.load.complete",
+            num_classes=len(self.class_names),
+            onnx_path=str(onnx_path),
+            providers=providers,
+        )
 
     def _ensure_loaded(self):
         if not self._loaded:
@@ -44,23 +76,27 @@ class BaseModel(ABC):
                 f"{self.__class__.__name__} must be loaded before use. Call .load() first."
             )
 
-    def predict_top3(self, inputs, k: int = 3):
+    def preprocess(self, inputs) -> np.ndarray:
+        if not isinstance(inputs, list):
+            inputs = [inputs]
+        tensors = [self._eval_transform(img) for img in inputs]
+        return np.stack([t.numpy() for t in tensors]).astype(np.float32)
+
+    def predict_top3(self, inputs, k: int = 3) -> list[list]:
         self._ensure_loaded()
-        self.model.eval()
 
-        with torch.no_grad():
-            batch = self.preprocess(inputs).to(self.device)
-            outputs = self.model(batch)
-            probs = F.softmax(outputs, dim=1)
-            top_probs, top_idx = torch.topk(probs, k, dim=1)
+        batch = self.preprocess(inputs)
+        logits = self.session.run(None, {self._input_name: batch})[0]
+        exp = np.exp(logits - logits.max(axis=1, keepdims=True))
+        probs = exp / exp.sum(axis=1, keepdims=True)
 
+        top_idx = np.argsort(-probs, axis=1)[:, :k]
         results = []
-        for i in range(batch.size(0)):
+        for i in range(probs.shape[0]):
             preds = [
-                (self.class_names[top_idx[i][j].item()], top_probs[i][j].item())
-                for j in range(k)
+                (self.class_names[idx], float(probs[i, idx])) for idx in top_idx[i]
             ]
             results.append(preds)
 
-        logger.info("model.predict_top3.complete", num_images=batch.size(0), k=k)
+        logger.info("model.predict_top3.complete", num_images=probs.shape[0], k=k)
         return results

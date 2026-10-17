@@ -11,6 +11,7 @@ from pet_breed_mlops_project.config import config
 from pet_breed_mlops_project.data import load_data
 from pet_breed_mlops_project.evaluation import evaluate_with_calibration
 from pet_breed_mlops_project.export import export_to_onnx
+from pet_breed_mlops_project.mlflow_model import PetBreedPyfunc
 from pet_breed_mlops_project.mlflow_utils import init_mlflow, start_run
 from pet_breed_mlops_project.model import build_model
 from pet_breed_mlops_project.train import get_device, train_model
@@ -80,13 +81,17 @@ def main():
         )
 
         output_dir = f"artifacts/{run_name}"
-        onnx_path = export_to_onnx(model_ft, f"{output_dir}/model.onnx")
+
         save_run_artifacts(output_dir, class_names, config.mean, config.std)
+        export_to_onnx(model_ft, f"{output_dir}/{config.onnx_filename}")
 
-        mlflow.log_artifact(str(onnx_path))
-        mlflow.log_artifact(f"{output_dir}/class_names.json")
-        mlflow.log_artifact(f"{output_dir}/transform_config.json")
-
+        mlflow.pyfunc.log_model(
+            name="petbreed",
+            python_model=PetBreedPyfunc(),
+            artifacts={
+                "model_artifacts": output_dir,
+            },
+        )
         logger.info(
             "script.run_complete",
             run_name=run_name,
