@@ -36,6 +36,19 @@ class Settings(BaseSettings):
     # api_host: str
     # api_port: int
 
+    model_name: str = "PetBreedClassifier"
+    model_alias: str = "production"
+    allowed_content_types: list[str] = [
+        "image/jpeg",
+        "image/png",
+        "image/jpg",
+        "image/webp",
+    ]
+
+    onnx_filename: str = "model.onnx"
+    class_name_filename: str = "class_names.json"
+    transform_config_filename: str = "transform_config.json"
+
     mlflow_experiment_name: str = "pet-breed-classification"
     mlflow_tracking_uri: str = "http://localhost:5000"
     mlflow_model_uri: str

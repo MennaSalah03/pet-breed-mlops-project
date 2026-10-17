@@ -12,6 +12,3 @@ mlflow-data/
 
 # training artifacts (ONNX models, class_names.json, transform_config.json)
 artifacts/
-
-# temporary
-docker/
